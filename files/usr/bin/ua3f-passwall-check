@@ -1,0 +1,43 @@
+#!/bin/sh
+# Read-only runtime diagnostic for the UA3F TPROXY + PassWall profile.
+set +e
+
+echo "===== firmware/kernel/board ====="
+cat /etc/openwrt_release 2>/dev/null
+uname -a
+ubus call system board 2>/dev/null
+
+echo "===== UA3F configuration/state ====="
+uci show ua3f 2>/dev/null
+ubus call service list '{"name":"ua3f"}' 2>/dev/null
+logread | grep -i ua3f | tail -n 60
+
+echo "===== PassWall configuration/state ====="
+uci show passwall.@global[0] 2>/dev/null
+ubus call service list '{"name":"passwall"}' 2>/dev/null
+logread | grep -i passwall | tail -n 60
+
+echo "===== nftables tables / marks ====="
+nft list table inet UA3F 2>&1
+nft list table inet passwall 2>&1
+nft list ruleset 2>/dev/null | grep -E '50535731|0x1c9|tproxy|queue' | head -n 160
+
+echo "===== routing policy ====="
+ip -4 route show default
+ip -4 route show table 457
+ip -6 route show default
+ip rule show
+ip -6 rule show
+
+echo "===== TC/eBPF eligibility clues ====="
+ip -o -4 addr show
+ip -d link show
+tc qdisc show 2>/dev/null
+tc filter show dev "$(ip -4 route show default 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1); exit}}')" egress 2>/dev/null
+grep -E 'nft_tproxy|nft_queue|nfnetlink_queue|sch_ingress|cls_bpf|act_bpf|sch_bpf' /proc/modules 2>/dev/null
+
+echo "===== offload and dnsmasq settings ====="
+uci show firewall 2>/dev/null | grep -E 'flow_offloading'
+uci show dhcp.@dnsmasq[0] 2>/dev/null | grep -E 'confdir|noresolv|server'
+ls -ld /tmp/dnsmasq.d /var/etc/dnsmasq.conf.* 2>/dev/null
+echo "Diagnostic is read-only; inspect above before enabling L3 mutations, Desync, or eBPF offload."
