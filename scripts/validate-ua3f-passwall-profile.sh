@@ -36,7 +36,7 @@ required=(
   CONFIG_PACKAGE_dnsmasq-full=y
   CONFIG_PACKAGE_ip-full=y
   CONFIG_PACKAGE_luci-theme-argon=y
-  CONFIG_PACKAGE_luci-i18n-passwall-zh-cn=y
+  CONFIG_LUCI_LANG_zh_Hans=y
   CONFIG_PACKAGE_sing-box=y
   CONFIG_PACKAGE_xray-core=y
 )
@@ -93,6 +93,7 @@ grep -Fxq "uci -q set firewall.@defaults[0].flow_offloading='0'" "$DEFAULTS"
 grep -Fxq "uci -q set firewall.@defaults[0].flow_offloading_hw='0'" "$DEFAULTS"
 grep -Fxq "uci -q set dhcp.@dnsmasq[0].confdir='/tmp/dnsmasq.d'" "$DEFAULTS"
 grep -Fxq "uci -q set luci.main.mediaurlbase='/luci-static/argon'" "$DEFAULTS"
+grep -Fxq "CONFIG_LUCI_LANG_zh_Hans=y" "$CONFIG"
 
 if grep -R -n -E 'luci-app-openclash|OPENCLASH_COMMIT' "$TOPDIR/package" --include='Makefile' --include='*.mk' | grep -v passwall >/dev/null; then
   echo "ERROR: OpenClash package source unexpectedly exists in build tree." >&2
