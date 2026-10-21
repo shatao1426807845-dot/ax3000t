@@ -1,0 +1,51 @@
+#!/bin/sh
+# First-boot profile for Xiaomi AX3000T V1/V2.
+# UA3F TPROXY is active. Advanced packet mutations remain opt-in until tested
+# on the actual campus/WAN route; all required modules and LuCI controls ship.
+
+# UA3F TPROXY core profile
+uci -q set ua3f.enabled.enabled='1'
+uci -q set ua3f.main.server_mode='TPROXY'
+uci -q set ua3f.main.port='1080'
+uci -q set ua3f.main.bind='0.0.0.0'
+uci -q set ua3f.main.rewrite_mode='GLOBAL'
+uci -q set ua3f.main.ua='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.5845.97 Safari/537.36 Core/1.116.569.400 QQBrowser/19.7.6765.400'
+uci -q set ua3f.main.ua_regex=''
+uci -q set ua3f.main.partial_replace='0'
+uci -q set ua3f.main.log_level='WARN'
+uci -q set ua3f.main.log_lines='1000'
+
+# Features are included and available in LuCI, but initially disabled to
+# keep first-boot WAN/DNS connectivity recoverable. Enable one at a time.
+uci -q set ua3f.main.l3_rewrite_ttl='0'
+uci -q set ua3f.main.l3_rewrite_ttl_value='64'
+uci -q set ua3f.main.l3_rewrite_ipid='0'
+uci -q set ua3f.main.l3_rewrite_tcpts='0'
+uci -q set ua3f.main.l3_rewrite_tcpwin='0'
+uci -q set ua3f.main.l3_rewrite_block_quic='0'
+uci -q set ua3f.main.l3_rewrite_bpf_offload='0'
+uci -q set ua3f.main.desync_reorder='0'
+uci -q set ua3f.main.desync_reorder_bytes='1500'
+uci -q set ua3f.main.desync_reorder_packets='8'
+uci -q set ua3f.main.desync_inject='0'
+uci -q set ua3f.main.desync_inject_ttl='3'
+uci -q set ua3f.main.desync_ports=''
+
+# Disable both fast-path offloading switches: they can bypass nftables hooks.
+uci -q set firewall.@defaults[0].flow_offloading='0'
+uci -q set firewall.@defaults[0].flow_offloading_hw='0'
+
+# Keep PassWall's generated dnsmasq include directory present on first boot.
+# The build also pins a PassWall revision that reads the current /var/etc path.
+mkdir -p /tmp/dnsmasq.d
+uci -q set dhcp.@dnsmasq[0].confdir='/tmp/dnsmasq.d'
+
+# Argon v3 is the default LuCI theme and Simplified Chinese the default language.
+uci -q set luci.main.mediaurlbase='/luci-static/argon'
+uci -q set luci.main.lang='zh_cn'
+
+uci -q commit ua3f
+uci -q commit firewall
+uci -q commit dhcp
+uci -q commit luci
+exit 0
