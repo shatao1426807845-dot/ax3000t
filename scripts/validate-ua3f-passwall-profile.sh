@@ -17,7 +17,6 @@ DEFAULTS="$TOPDIR/files/etc/uci-defaults/99-ax3000t-ua3f-passwall"
 
 required=(
   CONFIG_PACKAGE_firewall4=y
-  CONFIG_PACKAGE_nftables=y
   CONFIG_PACKAGE_nftables-json=y
   CONFIG_PACKAGE_kmod-nft-core=y
   CONFIG_PACKAGE_kmod-nf-conntrack-netlink=y
