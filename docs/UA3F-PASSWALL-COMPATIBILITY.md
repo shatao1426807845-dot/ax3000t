@@ -5,7 +5,7 @@
 - 硬件：小米 AX3000T V1（MT7531）与 V2（AN8855）分别编译、分别验证；只刷与实际硬件及 U-Boot 分区布局一致的镜像。
 - 基础：OpenWrt 25.12、firewall4、nftables。
 - 主流量改写：UA3F v3.7.0，TPROXY、端口 1080，默认全局改写。首启已启用 UA3F；User-Agent 使用项目要求的指定值。
-- 代理：PassWall（不是 OpenClash），启用 nftables 透明代理后端；随固件编译 Xray 与 Sing-box，排除 Shadowsocks Rust，控制构建时间、闪存和内存负担。
+- 代理：PassWall（不是 OpenClash），启用 nftables 透明代理后端；随固件编译 Xray 26.7.11 与 Sing-box，排除 Shadowsocks Rust，控制构建时间、闪存和内存负担。Xray 固定于 Go 1.26 兼容版本：OpenWrt 25.12 的构建工具链使用 Go 1.26.10，而 Xray 26.9+ 的 go.mod 要求 Go 1.27。
 - UI：LuCI 简体中文与 Argon v3 主题，主题设为默认。
 - 必需 UA3F 依赖：`kmod-nft-queue`、`kmod-nft-tproxy`、`kmod-sched-bpf`、`libubox-lua`，并加入 conntrack-netlink、nftables 与 TC 工具。
 - PassWall nftables 所需模块：`kmod-nft-socket`、`kmod-nft-nat`、`kmod-nf-reject`、`kmod-nf-reject6`、`kmod-nft-tproxy`。

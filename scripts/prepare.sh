@@ -46,6 +46,35 @@ clone_at_commit() {
 clone_at_commit \
   https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git \
   package/passwall-packages "$PASSWALL_PACKAGES_COMMIT"
+
+# OpenWrt 25.12 currently builds with Go 1.26.10. Xray 26.10.17 requires
+# Go >=1.27 and fails during package compilation. Pin Xray to 26.7.11, whose
+# go.mod declares Go 1.26, without rolling back the rest of the PassWall feed.
+python3 - "package/passwall-packages/xray-core/Makefile" <<'PY_XRAY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+expected_version = "PKG_VERSION:=26.10.17"
+expected_hash = "PKG_HASH:=62fb186017bc29c3d10950d7a1a61fd40aff0cb92ba2b77363e9004455f6bf89"
+pinned_version = "PKG_VERSION:=26.7.11"
+pinned_hash = "PKG_HASH:=7c191254c0d8cc8be7673904739fc7329b601947da5377ef85900a0cd0a85e23"
+
+if pinned_version in text and pinned_hash in text:
+    pass
+elif expected_version in text and expected_hash in text:
+    text = text.replace(expected_version, pinned_version, 1)
+    text = text.replace(expected_hash, pinned_hash, 1)
+else:
+    raise SystemExit("Unexpected Xray source version/hash; refusing to patch blindly")
+
+if text.count(pinned_version) != 1 or text.count(pinned_hash) != 1:
+    raise SystemExit("Pinned Xray version/hash validation failed")
+path.write_text(text)
+PY_XRAY
+grep -Fxq 'PKG_VERSION:=26.7.11' package/passwall-packages/xray-core/Makefile
+grep -Fxq 'PKG_HASH:=7c191254c0d8cc8be7673904739fc7329b601947da5377ef85900a0cd0a85e23' package/passwall-packages/xray-core/Makefile
 clone_at_commit \
   https://github.com/Openwrt-Passwall/openwrt-passwall.git \
   package/passwall-luci "$PASSWALL_LUCI_COMMIT"

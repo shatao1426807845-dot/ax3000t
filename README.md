@@ -12,7 +12,7 @@
 - **UA3F v3.7.0：TPROXY 模式**，首启配置为启用、端口 1080、全局改写，采用指定的 Windows / QQBrowser User-Agent。
 - 适配 OpenWrt 25.12 的 **firewall4 + nftables**，不依赖 UA3F 的旧 iptables 规则。
 - UA3F 依赖明确纳入：`kmod-nft-queue`、`kmod-nft-tproxy`、`kmod-sched-bpf`、`libubox-lua`，以及 conntrack-netlink、nftables、TC 工具。
-- **PassWall** 使用 nftables 透明代理后端，随固件提供 Xray 和 Sing-box 两个常用核心；刻意排除 Shadowsocks Rust，避免把额外 Rust 工具链带入这款内存/闪存有限的设备。
+- **PassWall** 使用 nftables 透明代理后端，随固件提供 Xray 26.7.11 和 Sing-box 两个常用核心。Xray 固定在支持 Go 1.26 的版本，因为 OpenWrt 25.12 当前构建环境使用 Go 1.26.10；上游 Xray 26.9+ 要求 Go 1.27，直接使用会导致编译失败。刻意排除 Shadowsocks Rust，避免把额外 Rust 工具链带入这款内存/闪存有限的设备。
 - UA3F 保留上游 Clash 常见 mark 绕行，并增加对 PassWall nftables 标记 `0x50535731` 的绕行，避免已由 PassWall 接管的连接再被 UA3F 重复截获。
 - **不默认打开** TTL、IPID、TCP 时间戳、TCP 初始窗口、QUIC 阻断、Desync 及 eBPF 卸载。相关 UA3F 控件与依赖都会打进固件；在实际校园网/中继网络中逐项测试后再启用。
 - firewall4 软件/硬件 flow offloading 默认关闭，以免绕过 TPROXY、NFQUEUE/Desync 或 TC eBPF 的处理链。

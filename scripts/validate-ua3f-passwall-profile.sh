@@ -6,11 +6,12 @@ CONFIG="$TOPDIR/.config"
 UA3F_MAKEFILE="$TOPDIR/package/UA3F/openwrt/Makefile"
 UA3F_TPROXY="$TOPDIR/package/UA3F/internal/server/tproxy/tproxy_linux.go"
 PASSWALL_NFT="$TOPDIR/package/passwall-luci/luci-app-passwall/root/usr/share/passwall/nftables.sh"
+XRAY_MAKEFILE="$TOPDIR/package/passwall-packages/xray-core/Makefile"
 UA3F_CBI="$TOPDIR/package/UA3F/openwrt/luasrc/model/cbi/ua3f"
 DEFAULTS="$TOPDIR/files/etc/uci-defaults/99-ax3000t-ua3f-passwall"
 
 [[ -f "$CONFIG" ]] || { echo "ERROR: missing resolved OpenWrt .config" >&2; exit 1; }
-[[ -f "$UA3F_MAKEFILE" && -f "$UA3F_TPROXY" && -f "$PASSWALL_NFT" ]] || {
+[[ -f "$UA3F_MAKEFILE" && -f "$UA3F_TPROXY" && -f "$PASSWALL_NFT" && -f "$XRAY_MAKEFILE" ]] || {
   echo "ERROR: missing UA3F/PassWall source files" >&2; exit 1;
 }
 [[ -f "$DEFAULTS" ]] || { echo "ERROR: first-boot defaults missing from OpenWrt files/" >&2; exit 1; }
@@ -74,6 +75,8 @@ fi
 # Pin/compatibility guards are intentionally fail-closed: never compile a
 # silently incompatible pair if PassWall changes its mark or UA3F's patch anchor.
 grep -Fxq 'PKG_VERSION:=3.7.0' "$UA3F_MAKEFILE"
+grep -Fxq 'PKG_VERSION:=26.7.11' "$XRAY_MAKEFILE"
+grep -Fxq 'PKG_HASH:=7c191254c0d8cc8be7673904739fc7329b601947da5377ef85900a0cd0a85e23' "$XRAY_MAKEFILE"
 grep -Fq 'FWMARK="0x50535731"' "$PASSWALL_NFT"
 grep -Fq '"0x162"' "$UA3F_TPROXY"
 grep -Fq '"0x1ed4"' "$UA3F_TPROXY"
