@@ -24,7 +24,7 @@ done
 rm -rf feeds/luci/applications/luci-app-passwall
 rm -rf package/feeds/luci/luci-app-passwall
 
-rm -rf package/UA3F package/UA2F package/luci-app-openclash
+rm -rf ua3f-src package/UA2F package/luci-app-openclash
 rm -rf package/passwall-packages package/passwall-luci package/luci-theme-argon
 
 clone_at_commit() {
@@ -82,12 +82,12 @@ clone_at_commit \
   https://github.com/jerrykuku/luci-theme-argon.git \
   package/luci-theme-argon "$ARGON_COMMIT"
 
-git clone --depth 1 --branch v3.7.0 https://github.com/SunBK201/UA3F.git package/UA3F
+git clone --depth 1 --branch v3.7.0 https://github.com/SunBK201/UA3F.git ua3f-src
 
 # UA3F's Go module has its executable entry point in the repository root
 # (main.go). Without an explicit build package, the OpenWrt Go helper builds
 # package libraries but does not create the /ua3f binary expected by install.
-python3 - "package/UA3F/openwrt/Makefile" <<'PY_UA3F_BUILD'
+python3 - "ua3f-src/openwrt/Makefile" <<'PY_UA3F_BUILD'
 from pathlib import Path
 import sys
 
@@ -103,11 +103,11 @@ path.write_text(text)
 if text.count(setting) != 1:
     raise SystemExit("UA3F executable build target validation failed")
 PY_UA3F_BUILD
-grep -Fxq 'GO_PKG_BUILD_PKG:=github.com/sunbk201/ua3f' package/UA3F/openwrt/Makefile
+grep -Fxq 'GO_PKG_BUILD_PKG:=github.com/sunbk201/ua3f' ua3f-src/openwrt/Makefile
 
 # OpenWrt 25.12 APK packaging is incompatible with this legacy optional
 # UA3F postrm hook. Remove only that hook and retain normal init/config files.
-python3 - "package/UA3F/openwrt/Makefile" <<'PY_UA3F_POSTRM'
+python3 - "ua3f-src/openwrt/Makefile" <<'PY_UA3F_POSTRM'
 from pathlib import Path
 import re
 import sys
@@ -126,7 +126,7 @@ PY_UA3F_POSTRM
 
 # OpenWrt 25.12 uses firewall4/nftables. Replace UA3F's legacy iptables
 # dependencies with the nftables/TC modules actually selected for this build.
-python3 - "package/UA3F/openwrt/Makefile" <<'PY_UA3F'
+python3 - "ua3f-src/openwrt/Makefile" <<'PY_UA3F'
 from pathlib import Path
 import sys
 
@@ -168,7 +168,7 @@ PY_UA3F
 
 # PassWall (nftables) uses fwmark 0x50535731. Teach UA3F TPROXY to leave
 # PassWall-selected packets to PassWall, preserving existing Clash marks too.
-python3 - "package/UA3F/internal/server/tproxy/tproxy_linux.go" <<'PY_MARK'
+python3 - "ua3f-src/internal/server/tproxy/tproxy_linux.go" <<'PY_MARK'
 from pathlib import Path
 import re
 import sys
@@ -208,14 +208,14 @@ path.write_text(text)
 PY_ARGON
 
 mkdir -p package/feeds/ua3f_local
-ln -sfn ../../UA3F/openwrt package/feeds/ua3f_local/ua3f
+ln -sfn ../../../ua3f-src/openwrt package/feeds/ua3f_local/ua3f
 
-test -f package/UA3F/openwrt/Makefile
-test -f package/UA3F/internal/server/tproxy/tproxy_linux.go
-grep -Fxq 'PKG_VERSION:=3.7.0' package/UA3F/openwrt/Makefile
-grep -Fxq 'GO_PKG_BUILD_PKG:=github.com/sunbk201/ua3f' package/UA3F/openwrt/Makefile
+test -f ua3f-src/openwrt/Makefile
+test -f ua3f-src/internal/server/tproxy/tproxy_linux.go
+grep -Fxq 'PKG_VERSION:=3.7.0' ua3f-src/openwrt/Makefile
+grep -Fxq 'GO_PKG_BUILD_PKG:=github.com/sunbk201/ua3f' ua3f-src/openwrt/Makefile
 grep -Fq 'FWMARK="0x50535731"' package/passwall-luci/luci-app-passwall/root/usr/share/passwall/nftables.sh
-grep -Fq '"0x50535731"' package/UA3F/internal/server/tproxy/tproxy_linux.go
+grep -Fq '"0x50535731"' ua3f-src/internal/server/tproxy/tproxy_linux.go
 test -f package/passwall-luci/luci-app-passwall/Makefile
 test -f package/passwall-packages/sing-box/Makefile
 test -f package/passwall-packages/xray-core/Makefile
