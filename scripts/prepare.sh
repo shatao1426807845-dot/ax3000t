@@ -93,7 +93,7 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
-setting = "GO_PKG_BUILD_PKG:=github.com/sunbk201/ua3f"
+setting = "GO_PKG_BUILD_PKG:=."
 if setting not in text:
     anchor = "GO_PKG:=github.com/sunbk201/ua3f\n"
     if anchor not in text:
@@ -103,7 +103,7 @@ path.write_text(text)
 if text.count(setting) != 1:
     raise SystemExit("UA3F executable build target validation failed")
 PY_UA3F_BUILD
-grep -Fxq 'GO_PKG_BUILD_PKG:=github.com/sunbk201/ua3f' ua3f-src/openwrt/Makefile
+grep -Fxq 'GO_PKG_BUILD_PKG:=.' ua3f-src/openwrt/Makefile
 
 # OpenWrt 25.12 APK packaging is incompatible with this legacy optional
 # UA3F postrm hook. Remove only that hook and retain normal init/config files.
@@ -213,7 +213,7 @@ ln -sfn ../../../ua3f-src/openwrt package/feeds/ua3f_local/ua3f
 test -f ua3f-src/openwrt/Makefile
 test -f ua3f-src/internal/server/tproxy/tproxy_linux.go
 grep -Fxq 'PKG_VERSION:=3.7.0' ua3f-src/openwrt/Makefile
-grep -Fxq 'GO_PKG_BUILD_PKG:=github.com/sunbk201/ua3f' ua3f-src/openwrt/Makefile
+grep -Fxq 'GO_PKG_BUILD_PKG:=.' ua3f-src/openwrt/Makefile
 grep -Fq 'FWMARK="0x50535731"' package/passwall-luci/luci-app-passwall/root/usr/share/passwall/nftables.sh
 grep -Fq '"0x50535731"' ua3f-src/internal/server/tproxy/tproxy_linux.go
 test -f package/passwall-luci/luci-app-passwall/Makefile
