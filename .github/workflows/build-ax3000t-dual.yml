@@ -121,6 +121,28 @@ jobs:
       - name: Download source archives
         run: make -C openwrt download -j8
 
+      - name: Fix Go cross-compile binary output directory
+        run: |
+          python3 - openwrt/feeds/packages/lang/golang/golang-build.sh <<'PY'
+          from pathlib import Path
+          import sys
+
+          path = Path(sys.argv[1])
+          text = path.read_text()
+          old = 'go install $modargs "$@" $targets'
+          new = 'GOBIN="$GO_BUILD_BIN_DIR" go install $modargs "$@" $targets'
+          if new in text:
+              pass
+          elif text.count(old) == 1:
+              text = text.replace(old, new, 1)
+          else:
+              raise SystemExit("Unexpected OpenWrt Go build helper; refusing to patch blindly")
+          if text.count(new) != 1:
+              raise SystemExit("Go binary output-directory patch validation failed")
+          path.write_text(text)
+          PY
+          grep -Fq 'GOBIN="$GO_BUILD_BIN_DIR" go install $modargs "$@" $targets' openwrt/feeds/packages/lang/golang/golang-build.sh
+
       - name: Compile firmware
         env:
           VARIANT: ${{ matrix.variant }}
