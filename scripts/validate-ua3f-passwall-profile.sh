@@ -3,11 +3,11 @@ set -euo pipefail
 
 TOPDIR="${1:-openwrt}"
 CONFIG="$TOPDIR/.config"
-UA3F_MAKEFILE="$TOPDIR/package/UA3F/openwrt/Makefile"
-UA3F_TPROXY="$TOPDIR/package/UA3F/internal/server/tproxy/tproxy_linux.go"
+UA3F_MAKEFILE="$TOPDIR/ua3f-src/openwrt/Makefile"
+UA3F_TPROXY="$TOPDIR/ua3f-src/internal/server/tproxy/tproxy_linux.go"
 PASSWALL_NFT="$TOPDIR/package/passwall-luci/luci-app-passwall/root/usr/share/passwall/nftables.sh"
 XRAY_MAKEFILE="$TOPDIR/package/passwall-packages/xray-core/Makefile"
-UA3F_CBI="$TOPDIR/package/UA3F/openwrt/luasrc/model/cbi/ua3f"
+UA3F_CBI="$TOPDIR/ua3f-src/openwrt/luasrc/model/cbi/ua3f"
 DEFAULTS="$TOPDIR/files/etc/uci-defaults/99-ax3000t-ua3f-passwall"
 
 [[ -f "$CONFIG" ]] || { echo "ERROR: missing resolved OpenWrt .config" >&2; exit 1; }
