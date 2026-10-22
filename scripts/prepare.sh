@@ -24,7 +24,7 @@ done
 rm -rf feeds/luci/applications/luci-app-passwall
 rm -rf package/feeds/luci/luci-app-passwall
 
-rm -rf ua3f-src package/UA2F package/luci-app-openclash
+rm -rf ua3f-src package/UA2F package/UA3F package/luci-app-openclash
 rm -rf package/passwall-packages package/passwall-luci package/luci-theme-argon
 
 clone_at_commit() {
