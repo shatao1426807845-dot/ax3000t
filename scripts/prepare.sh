@@ -84,10 +84,29 @@ clone_at_commit \
 
 git clone --depth 1 --branch v3.7.0 https://github.com/SunBK201/UA3F.git package/UA3F
 
-# OpenWrt 25.12 APK packaging fails for this legacy optional postrm hook
-# with "apk mkpkg: failed to create package: Bad file descriptor".
-# The router does not need this postrm hook for normal operation; remove only
-# the hook and retain the init/config files. Validate the exact block first.
+# UA3F's Go module has its executable entry point in the repository root
+# (main.go). Without an explicit build package, the OpenWrt Go helper builds
+# package libraries but does not create the /ua3f binary expected by install.
+python3 - "package/UA3F/openwrt/Makefile" <<'PY_UA3F_BUILD'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+setting = "GO_PKG_BUILD_PKG:=github.com/sunbk201/ua3f"
+if setting not in text:
+    anchor = "GO_PKG:=github.com/sunbk201/ua3f\n"
+    if anchor not in text:
+        raise SystemExit("UA3F GO_PKG anchor changed; refusing to patch blindly")
+    text = text.replace(anchor, anchor + setting + "\n", 1)
+path.write_text(text)
+if text.count(setting) != 1:
+    raise SystemExit("UA3F executable build target validation failed")
+PY_UA3F_BUILD
+grep -Fxq 'GO_PKG_BUILD_PKG:=github.com/sunbk201/ua3f' package/UA3F/openwrt/Makefile
+
+# OpenWrt 25.12 APK packaging is incompatible with this legacy optional
+# UA3F postrm hook. Remove only that hook and retain normal init/config files.
 python3 - "package/UA3F/openwrt/Makefile" <<'PY_UA3F_POSTRM'
 from pathlib import Path
 import re
@@ -194,6 +213,7 @@ ln -sfn ../../UA3F/openwrt package/feeds/ua3f_local/ua3f
 test -f package/UA3F/openwrt/Makefile
 test -f package/UA3F/internal/server/tproxy/tproxy_linux.go
 grep -Fxq 'PKG_VERSION:=3.7.0' package/UA3F/openwrt/Makefile
+grep -Fxq 'GO_PKG_BUILD_PKG:=github.com/sunbk201/ua3f' package/UA3F/openwrt/Makefile
 grep -Fq 'FWMARK="0x50535731"' package/passwall-luci/luci-app-passwall/root/usr/share/passwall/nftables.sh
 grep -Fq '"0x50535731"' package/UA3F/internal/server/tproxy/tproxy_linux.go
 test -f package/passwall-luci/luci-app-passwall/Makefile
@@ -202,5 +222,5 @@ test -f package/passwall-packages/xray-core/Makefile
 test -f package/luci-theme-argon/Makefile
 
 echo "Prepared pinned UA3F v3.7.0, PassWall nftables feeds, Xray/Sing-box cores, and Argon v3."
-echo "UA3F package dependencies include kmod-nft-queue, kmod-nft-tproxy, kmod-sched-bpf and libubox-lua."
+echo "UA3F executable target and nftables dependencies are explicitly validated."
 echo "UA3F bypasses PassWall-marked 0x50535731 flows while keeping the upstream Clash-mark bypasses."
