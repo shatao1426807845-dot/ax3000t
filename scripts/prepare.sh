@@ -84,26 +84,29 @@ clone_at_commit \
 
 git clone --depth 1 --branch v3.7.0 https://github.com/SunBK201/UA3F.git ua3f-src
 
-# UA3F's Go module has its executable entry point in the repository root
-# (main.go). Without an explicit build package, the OpenWrt Go helper builds
-# package libraries but does not create the /ua3f binary expected by install.
+# UA3F's main package is the module root. Use its full import path rather
+# than "." so OpenWrt's Go helper resolves the executable target consistently.
 python3 - "ua3f-src/openwrt/Makefile" <<'PY_UA3F_BUILD'
 from pathlib import Path
 import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
-setting = "GO_PKG_BUILD_PKG:=."
+setting = "GO_PKG_BUILD_PKG:=github.com/sunbk201/ua3f"
+old_setting = "GO_PKG_BUILD_PKG:=."
 if setting not in text:
-    anchor = "GO_PKG:=github.com/sunbk201/ua3f\n"
-    if anchor not in text:
-        raise SystemExit("UA3F GO_PKG anchor changed; refusing to patch blindly")
-    text = text.replace(anchor, anchor + setting + "\n", 1)
+    if old_setting in text:
+        text = text.replace(old_setting, setting, 1)
+    else:
+        anchor = "GO_PKG:=github.com/sunbk201/ua3f\n"
+        if anchor not in text:
+            raise SystemExit("UA3F GO_PKG anchor changed; refusing to patch blindly")
+        text = text.replace(anchor, anchor + setting + "\n", 1)
 path.write_text(text)
 if text.count(setting) != 1:
     raise SystemExit("UA3F executable build target validation failed")
 PY_UA3F_BUILD
-grep -Fxq 'GO_PKG_BUILD_PKG:=.' ua3f-src/openwrt/Makefile
+grep -Fxq 'GO_PKG_BUILD_PKG:=github.com/sunbk201/ua3f' ua3f-src/openwrt/Makefile
 
 # OpenWrt 25.12 APK packaging is incompatible with this legacy optional
 # UA3F postrm hook. Remove only that hook and retain normal init/config files.
