@@ -122,7 +122,18 @@ jobs:
         run: make -C openwrt download -j8
 
       - name: Compile firmware
-        run: make -C openwrt -j2 V=s
+        env:
+          VARIANT: ${{ matrix.variant }}
+        run: |
+          # V1 previously failed with "Error: No binaries were built" from the
+          # UA3F Go package while a parallel make invocation installed the same
+          # package. Serialize V1 compilation to avoid concurrent Go package
+          # target races; keep V2's already-successful parallel setting intact.
+          if [ "$VARIANT" = "V1-MT7531" ]; then
+            make -C openwrt -j1 V=s
+          else
+            make -C openwrt -j2 V=s
+          fi
 
       - name: Verify images and create SHA256
         env:
