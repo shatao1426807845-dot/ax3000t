@@ -216,7 +216,7 @@ ln -sfn ../../../ua3f-src/openwrt package/feeds/ua3f_local/ua3f
 test -f ua3f-src/openwrt/Makefile
 test -f ua3f-src/internal/server/tproxy/tproxy_linux.go
 grep -Fxq 'PKG_VERSION:=3.7.0' ua3f-src/openwrt/Makefile
-grep -Fxq 'GO_PKG_BUILD_PKG:=.' ua3f-src/openwrt/Makefile
+grep -Fxq 'GO_PKG_BUILD_PKG:=github.com/sunbk201/ua3f' ua3f-src/openwrt/Makefile
 grep -Fq 'FWMARK="0x50535731"' package/passwall-luci/luci-app-passwall/root/usr/share/passwall/nftables.sh
 grep -Fq '"0x50535731"' ua3f-src/internal/server/tproxy/tproxy_linux.go
 test -f package/passwall-luci/luci-app-passwall/Makefile
