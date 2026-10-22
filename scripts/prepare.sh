@@ -84,6 +84,27 @@ clone_at_commit \
 
 git clone --depth 1 --branch v3.7.0 https://github.com/SunBK201/UA3F.git package/UA3F
 
+# OpenWrt 25.12 APK packaging fails for this legacy optional postrm hook
+# with "apk mkpkg: failed to create package: Bad file descriptor".
+# The router does not need this postrm hook for normal operation; remove only
+# the hook and retain the init/config files. Validate the exact block first.
+python3 - "package/UA3F/openwrt/Makefile" <<'PY_UA3F_POSTRM'
+from pathlib import Path
+import re
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+pattern = re.compile(r"(?ms)^define Package/ua3f/postrm\n.*?^endef\n?")
+if pattern.search(text):
+    text = pattern.sub("", text, count=1)
+elif "define Package/ua3f/postrm" in text:
+    raise SystemExit("UA3F postrm block format changed; refusing to patch blindly")
+path.write_text(text)
+if "define Package/ua3f/postrm" in text:
+    raise SystemExit("UA3F postrm hook was not removed")
+PY_UA3F_POSTRM
+
 # OpenWrt 25.12 uses firewall4/nftables. Replace UA3F's legacy iptables
 # dependencies with the nftables/TC modules actually selected for this build.
 python3 - "package/UA3F/openwrt/Makefile" <<'PY_UA3F'
