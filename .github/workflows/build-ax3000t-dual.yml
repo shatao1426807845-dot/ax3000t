@@ -130,7 +130,7 @@ jobs:
           path = Path(sys.argv[1])
           text = path.read_text()
           old = 'go install $modargs "$@" $targets'
-          new = 'GOBIN="$GO_BUILD_BIN_DIR" go install $modargs "$@" $targets'
+          new = 'env -u GOBIN go install $modargs "$@" $targets'
           if new in text:
               pass
           elif text.count(old) == 1:
@@ -141,7 +141,7 @@ jobs:
               raise SystemExit("Go binary output-directory patch validation failed")
           path.write_text(text)
           PY
-          grep -Fq 'GOBIN="$GO_BUILD_BIN_DIR" go install $modargs "$@" $targets' openwrt/feeds/packages/lang/golang/golang-build.sh
+          grep -Fq 'env -u GOBIN go install $modargs "$@" $targets' openwrt/feeds/packages/lang/golang/golang-build.sh
 
       - name: Compile firmware
         env:
