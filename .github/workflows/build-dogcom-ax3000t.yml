@@ -1,0 +1,132 @@
+name: Build Dogcom and LuCI packages for Xiaomi AX3000T
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/build-dogcom-ax3000t.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang flex bison g++ gawk gettext git libncurses-dev libssl-dev python3 python3-setuptools rsync unzip zlib1g-dev file wget curl zstd
+
+      - name: Download OpenWrt 24.10.7 SDK for mediatek/filogic (AX3000T)
+        shell: bash
+        run: |
+          set -euxo pipefail
+          SDK_URL="https://downloads.openwrt.org/releases/24.10.7/targets/mediatek/filogic/openwrt-sdk-24.10.7-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64.tar.zst"
+          curl -fL --connect-timeout 20 --max-time 300 --retry 3 "$SDK_URL" -o /tmp/openwrt-sdk.tar.zst
+          mkdir -p "$GITHUB_WORKSPACE/sdk"
+          tar --zstd -xf /tmp/openwrt-sdk.tar.zst -C "$GITHUB_WORKSPACE/sdk" --strip-components=1
+
+      - name: Fetch upstream Dogcom projects
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd "$GITHUB_WORKSPACE/sdk"
+          git clone --depth 1 https://github.com/mchome/openwrt-dogcom.git package/openwrt-dogcom
+          git clone --depth 1 https://github.com/mchome/luci-app-dogcom.git package/luci-app-dogcom
+
+      - name: Patch LuCI install handling and disabled-by-default service
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          root = Path("sdk/package/luci-app-dogcom")
+          defaults = root / "files/root/etc/uci-defaults/40_luci-dogcom"
+          defaults.parent.mkdir(parents=True, exist_ok=True)
+          defaults.write_text("""#!/bin/sh
+          uci -q delete 'ucitrack.@dogcom[-1]' >/dev/null 2>&1 || true
+          uci -q add ucitrack dogcom >/dev/null 2>&1 || true
+          uci -q set 'ucitrack.@dogcom[-1].init=dogcom' >/dev/null 2>&1 || true
+          uci -q commit ucitrack >/dev/null 2>&1 || true
+          rm -f /tmp/luci-indexcache
+          exit 0
+          """)
+          makefile = root / "Makefile"
+          text = makefile.read_text()
+          replacement = """define Package/luci-app-dogcom/postinst
+          #!/bin/sh
+          if [ -z "$${IPKG_INSTROOT}" ] && [ -f /etc/uci-defaults/luci-app-dogcom ]; then
+          	sh /etc/uci-defaults/luci-app-dogcom || true
+          	rm -f /etc/uci-defaults/luci-app-dogcom
+          	rm -f /tmp/luci-indexcache
+          fi
+          exit 0
+          endef"""
+          text, count = re.subn(r"define Package/luci-app-dogcom/postinst\n.*?\nendef", replacement, text, count=1, flags=re.S)
+          if count != 1:
+              raise SystemExit("Could not safely patch upstream LuCI postinst")
+          makefile.write_text(text)
+          init = root / "files/root/etc/init.d/dogcom"
+          text = init.read_text()
+          old = 'start(){\n    config_load dogcom\n    config_get version config version'
+          new = 'start(){\n    config_load dogcom\n    config_get enabled config enabled 0\n    [ "$enabled" = "1" ] || return 0\n    config_get version config version'
+          if old not in text:
+              raise SystemExit("Could not find expected dogcom init start block")
+          init.write_text(text.replace(old, new, 1))
+          PY
+
+      - name: Compile Dogcom and LuCI packages
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd "$GITHUB_WORKSPACE/sdk"
+          make defconfig
+          make package/openwrt-dogcom/compile -j2 V=s
+          make package/luci-app-dogcom/compile -j2 V=s
+          mkdir -p "$GITHUB_WORKSPACE/output"
+          find bin/packages -type f \( -name 'dogcom*.ipk' -o -name 'luci-app-dogcom*.ipk' \) -exec cp -v {} "$GITHUB_WORKSPACE/output/" \;
+          find "$GITHUB_WORKSPACE/output" -maxdepth 1 -type f -print
+          find "$GITHUB_WORKSPACE/output" -maxdepth 1 -name 'dogcom*.ipk' -print -quit | grep -q .
+          find "$GITHUB_WORKSPACE/output" -maxdepth 1 -name 'luci-app-dogcom*.ipk' -print -quit | grep -q .
+
+      - name: Validate package architecture and contents
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 - <<'PY'
+          import glob, io, os, tarfile
+          packages = glob.glob("output/*.ipk")
+          assert len(packages) == 2, f"Expected exactly two IPKs, got {packages}"
+          for path in packages:
+              with tarfile.open(path, "r:") as outer:
+                  names = outer.getnames()
+                  control_name = next(n for n in names if n.lstrip("./") == "control.tar.gz")
+                  data_name = next(n for n in names if n.lstrip("./") == "data.tar.gz")
+                  control = tarfile.open(fileobj=io.BytesIO(outer.extractfile(control_name).read()), mode="r:gz")
+                  meta = next(m for m in control.getmembers() if m.name.lstrip("./") == "control")
+                  fields = dict(line.split(": ", 1) for line in control.extractfile(meta).read().decode().splitlines() if ": " in line)
+                  print(os.path.basename(path), "Package=", fields.get("Package"), "Version=", fields.get("Version"), "Architecture=", fields.get("Architecture"), "Depends=", fields.get("Depends"))
+                  if fields.get("Package") == "dogcom":
+                      assert fields.get("Architecture") == "aarch64_cortex-a53", fields
+                  elif fields.get("Package") == "luci-app-dogcom":
+                      assert fields.get("Architecture") == "all", fields
+                      data = tarfile.open(fileobj=io.BytesIO(outer.extractfile(data_name).read()), mode="r:gz")
+                      data_names = [n.lstrip("./") for n in data.getnames()]
+                      assert "etc/init.d/dogcom" in data_names, data_names
+                  else:
+                      raise AssertionError(f"Unexpected package {fields.get('Package')}")
+          PY
+
+      - name: Upload IPK packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: dogcom-xiaomi-ax3000t-openwrt-24.10
+          path: output/*.ipk
+          if-no-files-found: error
+          retention-days: 14
